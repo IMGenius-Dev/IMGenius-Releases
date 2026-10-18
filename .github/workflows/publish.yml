@@ -1,0 +1,84 @@
+name: Publish reviewed IMGenius beta release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-assets/*/PUBLISH'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install signing verifier
+        run: python -m pip install 'cryptography>=42,<50'
+      - name: Verify assets and publish any newly approved prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Public verification key pinned in IMGenius imgenius/auto_update.py.
+          # This is not the private signing key; keeping it in source allows
+          # independent verification without depending on a missing CI variable.
+          IMGENIUS_SIGNING_PUBLIC_KEY: ml1ZHvM6xYg9AckcHE+bGFKUW12UbyVm7cSTNXNg9Rk=
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for flag in release-assets/*/PUBLISH; do
+            dir="$(dirname "$flag")"
+            tag="$(basename "$dir")"
+            if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Invalid release tag $tag"; exit 1
+            fi
+            [[ -f "$dir/SHA256SUMS.txt" && -f "$dir/RELEASE_NOTES.md" ]] || {
+              echo "::error::Missing checksum or release note file in $dir"; exit 1;
+            }
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "$tag is already published, skipping"
+              continue
+            fi
+            assets=()
+            while read -r checksum filename; do
+              [[ "$checksum" =~ ^[a-f0-9]{64}$ ]] || exit 1
+              [[ "$filename" =~ ^[A-Za-z0-9_.-]+$ ]] || exit 1
+              case "$filename" in
+                *.exe|*.deb|*.pkg.tar.zst|*.tar.gz) ;;
+                *) echo "::error::Unexpected distribution filename: $filename"; exit 1 ;;
+              esac
+              if [[ ! -f "$dir/$filename" ]]; then
+                # The Windows bootstrapper may be staged as byte-for-byte Git
+                # chunks because the GitHub connector has a single-blob limit.
+                parts=( "$dir/parts/$filename".part[0-9][0-9] )
+                [[ "${#parts[@]}" -gt 0 ]] || {
+                  echo "::error::Missing release asset: $filename"; exit 1;
+                }
+                cat "${parts[@]}" > "$dir/$filename"
+              fi
+              [[ -f "$dir/$filename" && ! -L "$dir/$filename" ]] || exit 1
+              assets+=("$dir/$filename")
+            done < "$dir/SHA256SUMS.txt"
+            (cd "$dir" && sha256sum --check SHA256SUMS.txt)
+            [[ "${#assets[@]}" -ge 1 ]] || exit 1
+            # Only publish the binaries enumerated in this version's reviewed checksum file.
+            assets+=("$dir/SHA256SUMS.txt")
+            # Existing v0.7.2 release predates mandatory publisher signatures.
+            # Every NEW release must have an Ed25519 manifest with a key
+            # configured in repository Actions Variables.
+            if [[ "$tag" != "v0.7.2" ]]; then
+              [[ -f "$dir/release-manifest.json" && -f "$dir/release-manifest.sig" ]] || {
+                echo "::error::Signed metadata is required for $tag"; exit 1;
+              }
+              python scripts/verify_signed_release.py "$dir" "$tag"
+              assets+=("$dir/release-manifest.json" "$dir/release-manifest.sig")
+            fi
+            gh release create "$tag" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "IMGenius $tag (Beta)" \
+              --notes-file "$dir/RELEASE_NOTES.md" \
+              --prerelease
+          done

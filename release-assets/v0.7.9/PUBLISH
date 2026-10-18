@@ -1,0 +1,4 @@
+Approved signed IMGenius v0.7.9 beta release
+Reviewed source: a3ec67c8993573f587a35c25e04b7b4c99dc0753
+Verification: SHA256SUMS.txt and Ed25519 release-manifest.json/signature
+Publisher public key verification: pinned to IMGenius trusted Ed25519 key
