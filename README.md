@@ -21,7 +21,7 @@ An internet connection is needed to download the app, models, or optional online
 
 ## Download IMGenius
 
-Get the current public beta from the **[official GitHub Releases page](https://github.com/IMGenius-Dev/IMGenius-Releases/releases)**. The available installers and their supported systems are listed on each release page.
+Get **IMGenius v0.8.0 Beta** from the **[official GitHub Releases page](https://github.com/IMGenius-Dev/IMGenius-Releases/releases)**. The available installers and their supported systems are listed on each release page.
 
 | Platform | Download file | Installation |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ Get the current public beta from the **[official GitHub Releases page](https://g
 | Arch Linux | `imgenius-VERSION-1-x86_64.pkg.tar.zst` | Install with `sudo pacman -U ./imgenius-VERSION-1-x86_64.pkg.tar.zst`. |
 | Debian / Ubuntu | `imgenius_VERSION_amd64.deb` | Install with `sudo apt install ./imgenius_VERSION_amd64.deb`. |
 
-**[View the current published release](https://github.com/IMGenius-Dev/IMGenius-Releases/releases/tag/v0.7.9)**
+**[Download IMGenius v0.8.0 Beta](https://github.com/IMGenius-Dev/IMGenius-Releases/releases/tag/v0.8.0)**
 
 ## Getting started
 
